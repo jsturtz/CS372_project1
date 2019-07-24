@@ -8,11 +8,10 @@
 #include <netdb.h>
 #include <signal.h>
 
-
 struct args {
     int socket;
-    pthread_mutex_t *lock;
     char* handle;
+    int* alive_flag;
 };
 
 void replaceNewLine(char* str)
@@ -21,7 +20,6 @@ void replaceNewLine(char* str)
     while(str[i] != '\0' && str[i] != '\n') i++;
     str[i] = '\0';
 }
-
  
 void *sender(void *input) 
 {
@@ -36,7 +34,7 @@ void *sender(void *input)
    
     while(1)
     {
-        printf("%s> ", handle);
+        printf("Entering sender while loop\n");
         // copy handle and two characters
         strcpy(message, handle);
         strcat(message, "> ");
@@ -72,22 +70,20 @@ void *sender(void *input)
 void *receiver(void *input) 
 {
     // get args from input
-    pthread_mutex_t lock = *((struct args*)input)->lock;
     int socket = ((struct args*)input)->socket;
     char *handle = ((struct args*)input)->handle;
+    int *alive_flag = ((struct args*)input)->alive_flag;
     
     // buffer for message
     char message[500];
 
-    while(1) 
+    while(*alive_flag) 
     {
         memset(message, 500, '\0');
         if (!(read(socket, message, 500) == -1))
         {
-            pthread_mutex_lock(&lock);
-            printf("\n%s\n%s> ", message, handle);
-            fflush(stdout);
-            pthread_mutex_unlock(&lock);
+            printf("%s\n", message);
+
         }
         else 
         {
@@ -215,6 +211,7 @@ int main(int argc, char const *argv[])
     arguments->socket = sock;
     arguments->lock = &lock;
     arguments->handle = handle;
+    
 
     // create multiple threads
     pthread_t sender_id; 
